@@ -1,4 +1,31 @@
+using System.Collections.Generic;
 using UnityEngine;
+
+[System.Serializable]
+public class BlockData
+{
+    public PushBlock block;
+    public Vector2Int position;
+
+    public BlockData(PushBlock b, Vector2Int pos)
+    {
+        block = b;
+        position = pos;
+    }
+}
+
+[System.Serializable]
+public class TrapData
+{
+    public HazardTrap trap;
+    public bool isActive;
+
+    public TrapData(HazardTrap t, bool state)
+    {
+        trap = t;
+        isActive = state;
+    }
+}
 
 [System.Serializable]
 public class PlayerState
@@ -7,13 +34,26 @@ public class PlayerState
     public int remainingTurns;
     public bool isKeyCollected;
     public bool isDoorUnlocked;
+    public List<BlockData> blocksState;
+    public List<TrapData> trapsState;
 
-    // Constructor สำหรับสร้าง Snapshot ณ ก้าวนั้นๆ
-    public PlayerState(Vector2Int pos, int turns, bool keyState, bool doorState)
+    public PlayerState(Vector2Int pos, int turns, bool keyState, bool doorState, List<BlockData> blocks, List<TrapData> traps)
     {
         playerPosition = pos;
         remainingTurns = turns;
         isKeyCollected = keyState;
         isDoorUnlocked = doorState;
+
+        blocksState = new List<BlockData>();
+        foreach (var b in blocks)
+        {
+            blocksState.Add(new BlockData(b.block, b.position));
+        }
+
+        trapsState = new List<TrapData>();
+        foreach (var t in traps)
+        {
+            trapsState.Add(new TrapData(t.trap, t.isActive));
+        }
     }
 }

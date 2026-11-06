@@ -10,14 +10,14 @@ public class GameManager : MonoBehaviour
     public int currentTurns;
     public bool isSoftLocked = false;
 
-    [Header("Data Structures (3 Points)")]
+    [Header("Data Structures")]
     private Stack<PlayerState> undoStack = new Stack<PlayerState>();
     private Stack<PlayerState> redoStack = new Stack<PlayerState>();
 
     [Header("Action Tracker")]
     public PlayerActionLog actionLog = new PlayerActionLog();
 
-    // References สำหรับระบบในเกม (จะเชื่อมต่อใน Step ถัดๆ ไป)
+    [Header("Level Objects")]
     public Vector2Int currentPlayerGridPos;
     public bool hasKey = false;
     public bool isDoorOpen = false;
@@ -33,32 +33,57 @@ public class GameManager : MonoBehaviour
         InitLevel(maxTurns);
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.U)) Undo();
+        if (Input.GetKeyDown(KeyCode.R)) Redo();
+    }
+
     public void InitLevel(int turns)
     {
         maxTurns = turns;
         currentTurns = maxTurns;
         isSoftLocked = false;
+        hasKey = false;
+        isDoorOpen = false;
         undoStack.Clear();
         redoStack.Clear();
         actionLog.ResetLog();
         
-        // บันทึก State แรกสุดของด่านลง Stack
         RecordState();
     }
 
-    // เรียกฟังก์ชันนี้ทุกครั้งก่อนผู้เล่นขยับตัว หรือทำ Action บน Grid
     public void RecordState()
     {
-        PlayerState snapshot = new PlayerState(currentPlayerGridPos, currentTurns, hasKey, isDoorOpen);
+        PushBlock[] blocks = FindObjectsOfType<PushBlock>(true);
+        List<BlockData> blockDataList = new List<BlockData>();
+        foreach (var b in blocks)
+        {
+            blockDataList.Add(new BlockData(b, b.gridPosition));
+        }
+
+        HazardTrap[] traps = FindObjectsOfType<HazardTrap>(true);
+        List<TrapData> trapDataList = new List<TrapData>();
+        foreach (var t in traps)
+        {
+            trapDataList.Add(new TrapData(t, t.isActive));
+        }
+
+        PlayerState snapshot = new PlayerState(currentPlayerGridPos, currentTurns, hasKey, isDoorOpen, blockDataList, trapDataList);
         undoStack.Push(snapshot);
-        
-        // เมื่อมีการเดินใหม่ ต้องล้าง Redo Stack ทิ้ง
         redoStack.Clear();
     }
 
     public void UseTurn(int cost = 1)
     {
         currentTurns -= cost;
+
+        HazardTrap[] traps = FindObjectsOfType<HazardTrap>();
+        foreach (var trap in traps)
+        {
+            trap.ToggleState();
+        }
+
         if (currentTurns <= 0)
         {
             currentTurns = 0;
@@ -67,42 +92,28 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // ฟังก์ชัน Undo (ย้อนเวลากลับ 1 ก้าว)
     public void Undo()
     {
-        if (undoStack.Count <= 1)
-        {
-            Debug.Log("ไม่สามารถ Undo ต่อได้แล้ว อยู่ก้าวแรกสุด");
-            return;
-        }
+        if (undoStack.Count <= 1) return;
 
-        // Pop State ปัจจุบันออกไปเก็บใน Redo Stack
         PlayerState currentState = undoStack.Pop();
         redoStack.Push(currentState);
 
-        // ดึง State ก่อนหน้าขึ้นมาใช้งาน
         PlayerState previousState = undoStack.Peek();
         ApplyState(previousState);
 
         actionLog.undoCount++;
-        Debug.Log($"Undo สำเร็จ! ก้าวที่เหลือ: {currentTurns}");
     }
 
-    // ฟังก์ชัน Redo (ทำซ้ำก้าวที่เคย Undo)
     public void Redo()
     {
-        if (redoStack.Count == 0)
-        {
-            Debug.Log("ไม่มีประวัติให้ Redo");
-            return;
-        }
+        if (redoStack.Count == 0) return;
 
         PlayerState nextState = redoStack.Pop();
         undoStack.Push(nextState);
         ApplyState(nextState);
 
         actionLog.redoCount++;
-        Debug.Log($"Redo สำเร็จ! ก้าวที่เหลือ: {currentTurns}");
     }
 
     private void ApplyState(PlayerState state)
@@ -112,12 +123,58 @@ public class GameManager : MonoBehaviour
         hasKey = state.isKeyCollected;
         isDoorOpen = state.isDoorUnlocked;
 
-        // ปลด Soft-Lock หากย้อนกลับมาจนมีก้าวเหลือมากกว่า 0
-        if (currentTurns > 0)
+        if (currentTurns > 0) isSoftLocked = false;
+
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null) player.SetGridPosition(state.playerPosition);
+
+        foreach (var bData in state.blocksState)
         {
-            isSoftLocked = false;
+            if (bData.block != null)
+            {
+                bData.block.SetGridPosition(bData.position);
+            }
         }
 
-        // TODO: สั่งให้ Player GameObject และวัตถุบน Grid ขยับตามพิกัดใน State นี้ (จะทำใน Step 2)
+        foreach (var tData in state.trapsState)
+        {
+            if (tData.trap != null) tData.trap.SetState(tData.isActive);
+        }
+
+        KeyItem key = FindObjectOfType<KeyItem>(true);
+        if (key != null) key.SetCollected(hasKey);
+
+        DoorBlock door = FindObjectOfType<DoorBlock>(true);
+        if (door != null) door.SetUnlocked(isDoorOpen);
+    }
+
+    public bool CanMoveTo(Vector2Int targetPos)
+    {
+        if (GetBlockAt(targetPos) != null) return false;
+
+        DoorBlock door = GetDoorAt(targetPos);
+        if (door != null && !isDoorOpen) return false;
+
+        return true;
+    }
+
+    public PushBlock GetBlockAt(Vector2Int pos)
+    {
+        PushBlock[] blocks = FindObjectsOfType<PushBlock>();
+        foreach (var b in blocks)
+        {
+            if (b.gameObject.activeSelf && b.gridPosition == pos) return b;
+        }
+        return null;
+    }
+
+    public DoorBlock GetDoorAt(Vector2Int pos)
+    {
+        DoorBlock[] doors = FindObjectsOfType<DoorBlock>(true);
+        foreach (var d in doors)
+        {
+            if (d.gridPosition == pos) return d;
+        }
+        return null;
     }
 }

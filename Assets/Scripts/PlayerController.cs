@@ -39,6 +39,16 @@ public class PlayerController : GridEntity
             return;
         }
 
+        EnemyEntity enemy = GameManager.Instance.GetEnemyAt(targetPos);
+        if (enemy != null)
+        {
+            if (enemy.TryPush(direction))
+            {
+                MovePlayer(targetPos);
+            }
+            return;
+        }
+
         if (GameManager.Instance.CanMoveTo(targetPos))
         {
             MovePlayer(targetPos);

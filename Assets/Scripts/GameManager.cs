@@ -57,19 +57,17 @@ public class GameManager : MonoBehaviour
     {
         PushBlock[] blocks = FindObjectsOfType<PushBlock>(true);
         List<BlockData> blockDataList = new List<BlockData>();
-        foreach (var b in blocks)
-        {
-            blockDataList.Add(new BlockData(b, b.gridPosition));
-        }
+        foreach (var b in blocks) blockDataList.Add(new BlockData(b, b.gridPosition));
 
         HazardTrap[] traps = FindObjectsOfType<HazardTrap>(true);
         List<TrapData> trapDataList = new List<TrapData>();
-        foreach (var t in traps)
-        {
-            trapDataList.Add(new TrapData(t, t.isActive));
-        }
+        foreach (var t in traps) trapDataList.Add(new TrapData(t, t.isActive));
 
-        PlayerState snapshot = new PlayerState(currentPlayerGridPos, currentTurns, hasKey, isDoorOpen, blockDataList, trapDataList);
+        EnemyEntity[] enemies = FindObjectsOfType<EnemyEntity>(true);
+        List<EnemyData> enemyDataList = new List<EnemyData>();
+        foreach (var e in enemies) enemyDataList.Add(new EnemyData(e, e.gridPosition, e.isAlive));
+
+        PlayerState snapshot = new PlayerState(currentPlayerGridPos, currentTurns, hasKey, isDoorOpen, blockDataList, trapDataList, enemyDataList);
         undoStack.Push(snapshot);
         redoStack.Clear();
     }
@@ -130,15 +128,17 @@ public class GameManager : MonoBehaviour
 
         foreach (var bData in state.blocksState)
         {
-            if (bData.block != null)
-            {
-                bData.block.SetGridPosition(bData.position);
-            }
+            if (bData.block != null) bData.block.SetGridPosition(bData.position);
         }
 
         foreach (var tData in state.trapsState)
         {
             if (tData.trap != null) tData.trap.SetState(tData.isActive);
+        }
+
+        foreach (var eData in state.enemiesState)
+        {
+            if (eData.enemy != null) eData.enemy.SetAliveState(eData.isAlive, eData.position);
         }
 
         KeyItem key = FindObjectOfType<KeyItem>(true);
@@ -151,6 +151,7 @@ public class GameManager : MonoBehaviour
     public bool CanMoveTo(Vector2Int targetPos)
     {
         if (GetBlockAt(targetPos) != null) return false;
+        if (GetEnemyAt(targetPos) != null) return false;
 
         DoorBlock door = GetDoorAt(targetPos);
         if (door != null && !isDoorOpen) return false;
@@ -174,6 +175,19 @@ public class GameManager : MonoBehaviour
         foreach (var d in doors)
         {
             if (d.gridPosition == pos) return d;
+        }
+        return null;
+    }
+
+    public EnemyEntity GetEnemyAt(Vector2Int pos)
+    {
+        EnemyEntity[] enemies = FindObjectsOfType<EnemyEntity>();
+        foreach (var e in enemies)
+        {
+            if (e.gameObject.activeSelf && e.isAlive && e.gridPosition == pos)
+            {
+                return e;
+            }
         }
         return null;
     }

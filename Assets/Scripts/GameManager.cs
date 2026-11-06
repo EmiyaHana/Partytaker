@@ -22,6 +22,8 @@ public class GameManager : MonoBehaviour
     public bool hasKey = false;
     public bool isDoorOpen = false;
 
+    public bool isGameOver = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -190,5 +192,28 @@ public class GameManager : MonoBehaviour
             }
         }
         return null;
+    }
+
+    public void TriggerGameOver()
+    {
+        isGameOver = true;
+        isSoftLocked = true;
+        Debug.Log("GAME OVER! กด R เพื่อ Restart Level หรือกด U เพื่อ Undo ถอยกลับไปก่อนเลือกคำตอบ");
+    }
+
+    public void RestartLevel()
+    {
+        isGameOver = false;
+        isSoftLocked = false;
+        InitLevel(maxTurns);
+    
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null)
+        {
+            player.SetGridPosition(new Vector2Int(0, 0));
+            currentPlayerGridPos = new Vector2Int(0, 0);
+        }
+    
+        Debug.Log("รีเซ็ตด่านใหม่เรียบร้อยแล้ว!");
     }
 }

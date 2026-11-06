@@ -83,6 +83,12 @@ public class PlayerController : GridEntity
             
             Debug.Log("เก็บกุญแจแล้ว! ประตูเปิดทันที");
         }
+
+        GoalPoint goal = FindObjectOfType<GoalPoint>();
+        if (goal != null)
+        {
+            goal.CheckGoal(targetPos);
+        }
     }
 
     private HazardTrap GetTrapAt(Vector2Int targetPos)

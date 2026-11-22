@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -88,7 +89,6 @@ public class GameManager : MonoBehaviour
         {
             currentTurns = 0;
             isSoftLocked = true;
-            Debug.Log("ก้าวหมดแล้ว! ติด Soft-Lock - กรุณากด Undo เพื่อย้อนเวลา");
         }
     }
 
@@ -194,26 +194,30 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
+    public EndLevelNPC GetNPCAt(Vector2Int pos)
+    {
+        EndLevelNPC[] npcs = FindObjectsOfType<EndLevelNPC>();
+        foreach (var npc in npcs)
+        {
+            if (npc.gameObject.activeSelf && npc.gridPosition == pos)
+            {
+                return npc;
+            }
+        }
+        return null;
+    }
+
     public void TriggerGameOver()
     {
         isGameOver = true;
         isSoftLocked = true;
-        Debug.Log("GAME OVER! กด R เพื่อ Restart Level หรือกด U เพื่อ Undo ถอยกลับไปก่อนเลือกคำตอบ");
     }
 
     public void RestartLevel()
     {
         isGameOver = false;
         isSoftLocked = false;
-        InitLevel(maxTurns);
-    
-        PlayerController player = FindObjectOfType<PlayerController>();
-        if (player != null)
-        {
-            player.SetGridPosition(new Vector2Int(0, 0));
-            currentPlayerGridPos = new Vector2Int(0, 0);
-        }
-    
-        Debug.Log("รีเซ็ตด่านใหม่เรียบร้อยแล้ว!");
+
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

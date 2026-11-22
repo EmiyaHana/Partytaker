@@ -13,15 +13,12 @@ public class EnemyEntity : GridEntity
     {
         Vector2Int targetPos = gridPosition + direction;
 
-        // เช็กว่าช่องด้านหลังศัตรูว่างและเดินได้ไหม
         if (GameManager.Instance.CanMoveTo(targetPos))
         {
-            // ช่องว่าง -> ศัตรูถอยหลัง 1 ช่อง
             SetGridPosition(targetPos);
             return true; 
         }
 
-        // ถ้าช่องด้านหลังศัตรูไม่ว่าง (ติดกำแพง/กล่อง/ประตู) -> ศัตรูถูกดันอัดจนตาย!
         CrushEnemy();
         return true; 
     }
@@ -29,9 +26,8 @@ public class EnemyEntity : GridEntity
     public void CrushEnemy()
     {
         isAlive = false;
-        gameObject.SetActive(false); // ซ่อนศัตรูออกไปก่อน
+        gameObject.SetActive(false);
         GameManager.Instance.actionLog.enemiesKilled++;
-        Debug.Log("ศัตรูถูกดันอัดกำแพง/สิ่งของจนขยี้ตายแล้ว!");
     }
 
     public void SetAliveState(bool aliveState, Vector2Int pos)

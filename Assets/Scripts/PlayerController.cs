@@ -29,6 +29,13 @@ public class PlayerController : GridEntity
     {
         Vector2Int targetPos = gridPosition + direction;
 
+        EndLevelNPC npc = GameManager.Instance.GetNPCAt(targetPos);
+        if (npc != null)
+        {
+            npc.TriggerInteraction();
+            return;
+        }
+
         PushBlock block = GameManager.Instance.GetBlockAt(targetPos);
         if (block != null)
         {
@@ -57,8 +64,6 @@ public class PlayerController : GridEntity
 
     private void MovePlayer(Vector2Int targetPos)
     {
-        GameManager.Instance.RecordState();
-
         SetGridPosition(targetPos);
         GameManager.Instance.currentPlayerGridPos = targetPos;
 
@@ -67,7 +72,6 @@ public class PlayerController : GridEntity
         HazardTrap trap = GetTrapAt(targetPos);
         if (trap != null && trap.isActive)
         {
-            Debug.Log("โดนกับดักหนาม! เสียเพิ่มอีก 1 ก้าว (รวมเสีย 2 ก้าว)");
             GameManager.Instance.UseTurn(1);
         }
 
@@ -80,15 +84,9 @@ public class PlayerController : GridEntity
             
             DoorBlock door = FindObjectOfType<DoorBlock>();
             if (door != null) door.SetUnlocked(true);
-            
-            Debug.Log("เก็บกุญแจแล้ว! ประตูเปิดทันที");
         }
 
-        GoalPoint goal = FindObjectOfType<GoalPoint>();
-        if (goal != null)
-        {
-            goal.CheckGoal(targetPos);
-        }
+        GameManager.Instance.RecordState();
     }
 
     private HazardTrap GetTrapAt(Vector2Int targetPos)

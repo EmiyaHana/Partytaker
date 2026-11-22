@@ -155,9 +155,13 @@ MonoBehaviour:
   npcNameText: {fileID: 1438037246}
   dialogueBodyText: {fileID: 555000502}
   pressEnterHintText: {fileID: 886616634}
-  optionButtons: []
-  optionButtonTexts: []
-  nextSceneToLoad: 
+  optionButtons:
+  - {fileID: 1089803638}
+  - {fileID: 698847180}
+  optionButtonTexts:
+  - {fileID: 1232577600}
+  - {fileID: 921191976}
+  nextSceneToLoad: Map1
   isDialogueActive: 0
 --- !u!4 &33248826
 Transform:
@@ -2102,7 +2106,7 @@ GameObject:
   - component: {fileID: 921191977}
   - component: {fileID: 921191976}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: Text (TMP)_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2975,7 +2979,7 @@ GameObject:
   - component: {fileID: 1232577601}
   - component: {fileID: 1232577600}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: Text (TMP)_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

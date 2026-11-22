@@ -67,11 +67,13 @@ public class PlayerController : GridEntity
         SetGridPosition(targetPos);
         GameManager.Instance.currentPlayerGridPos = targetPos;
 
+        GameManager.Instance.actionLog.stepsTaken++;
         GameManager.Instance.UseTurn(1);
 
         HazardTrap trap = GetTrapAt(targetPos);
         if (trap != null && trap.isActive)
         {
+            GameManager.Instance.actionLog.trapsTriggered++;
             GameManager.Instance.UseTurn(1);
         }
 

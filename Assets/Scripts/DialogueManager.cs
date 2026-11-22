@@ -8,21 +8,25 @@ public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
 
-    [Header("Dialogue Tree Nodes")]
-    public DialogueNode goodRouteNode;
-    public DialogueNode normalRouteNode;
+    [Header("Dialogue Start")]
+    [Tooltip("Start Node")]
+    public DialogueNode startNode;
     public DialogueNode currentNode;
 
     [Header("UI References")]
     public GameObject dialoguePanel;
+    public Image characterPortraitImage;
     public TextMeshProUGUI npcNameText;
     public TextMeshProUGUI dialogueBodyText;
+    public GameObject pressEnterHintText;
     public List<Button> optionButtons;
     public List<TextMeshProUGUI> optionButtonTexts;
 
     [Header("Level Transition")]
     public string nextSceneToLoad;
     public bool isDialogueActive = false;
+
+    private string baseNpcName = "NPC";
 
     private void Awake()
     {
@@ -32,26 +36,55 @@ public class DialogueManager : MonoBehaviour
         if (dialoguePanel != null) dialoguePanel.SetActive(false);
     }
 
+    private void Update()
+    {
+        if (!isDialogueActive || currentNode == null) return;
+
+        if (!currentNode.HasChoices && !currentNode.IsEndingNode)
+        {
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            {
+                AdvanceDialogue();
+            }
+        }
+    }
+
     public void StartDialogue(string npcName = "NPC")
     {
         isDialogueActive = true;
+        baseNpcName = npcName;
         GameManager.Instance.isSoftLocked = true;
 
         if (dialoguePanel != null) dialoguePanel.SetActive(true);
-        if (npcNameText != null) npcNameText.text = npcName;
+        if (npcNameText != null) npcNameText.text = baseNpcName;
 
         PlayerActionLog log = GameManager.Instance.actionLog;
 
-        if (log.undoCount <= 2 && log.enemiesKilled >= 1 && goodRouteNode != null)
+        currentNode = startNode;
+        DisplayCurrentNode();
+    }
+
+    public void AdvanceDialogue()
+    {
+        if (currentNode == null) return;
+
+        PlayerActionLog log = GameManager.Instance.actionLog;
+
+        foreach (var rule in currentNode.conditionBranches)
         {
-            currentNode = goodRouteNode;
-        }
-        else
-        {
-            currentNode = normalRouteNode;
+            if (rule.Evaluate(log) && rule.targetNode != null)
+            {
+                currentNode = rule.targetNode;
+                DisplayCurrentNode();
+                return;
+            }
         }
 
-        DisplayCurrentNode();
+        if (currentNode.defaultNextNode != null)
+        {
+            currentNode = currentNode.defaultNextNode;
+            DisplayCurrentNode();
+        }
     }
 
     public void SelectOption(int optionIndex)
@@ -66,32 +99,72 @@ public class DialogueManager : MonoBehaviour
     {
        if (currentNode == null) return;
 
-        if (dialogueBodyText != null)
-            dialogueBodyText.text = currentNode.dialogueText;
+       if (npcNameText != null)
+       {
+           npcNameText.text = string.IsNullOrEmpty(currentNode.overrideSpeakerName) 
+               ? baseNpcName 
+               : currentNode.overrideSpeakerName;
+       }
 
-        for (int i = 0; i < optionButtons.Count; i++)
-        {
-            optionButtons[i].onClick.RemoveAllListeners();
-            optionButtons[i].gameObject.SetActive(false);
-        }
+       if (characterPortraitImage != null && currentNode.characterPortrait != null)
+       {
+           characterPortraitImage.sprite = currentNode.characterPortrait;
+           characterPortraitImage.gameObject.SetActive(true);
+       }
 
-        if (currentNode.IsEndingNode)
-        {
-            TriggerEnding(currentNode.endingType);
-            return;
-        }
+       if (dialogueBodyText != null)
+           dialogueBodyText.text = currentNode.dialogueText;
 
-        for (int i = 0; i < currentNode.options.Count && i < optionButtons.Count; i++)
-        {
-            int index = i;
-            optionButtons[i].gameObject.SetActive(true);
-            optionButtonTexts[i].text = currentNode.options[i].optionText;
-            optionButtons[i].onClick.AddListener(() => SelectOption(index));
-        }
+       for (int i = 0; i < optionButtons.Count; i++)
+       {
+           optionButtons[i].onClick.RemoveAllListeners();
+           optionButtons[i].gameObject.SetActive(false);
+       }
+
+       if (currentNode.IsEndingNode)
+       {
+           if (pressEnterHintText != null) pressEnterHintText.SetActive(false);
+           TriggerEnding(currentNode.endingType);
+           return;
+       }
+
+       if (currentNode.HasChoices)
+       {
+           if (pressEnterHintText != null) pressEnterHintText.SetActive(false);
+
+           for (int i = 0; i < currentNode.options.Count && i < optionButtons.Count; i++)
+           {
+               int index = i;
+               optionButtons[i].gameObject.SetActive(true);
+               optionButtonTexts[i].text = currentNode.options[i].optionText;
+               optionButtons[i].onClick.AddListener(() => SelectOption(index));
+           }
+       }
+
+       else
+       {
+           if (pressEnterHintText != null) pressEnterHintText.SetActive(true);
+       }
     }
 
     private void TriggerEnding(EndingType ending)
     {
+        if (ending == EndingType.FinalVictory)
+        {
+            if (optionButtons.Count > 0 && optionButtonTexts.Count > 0)
+            {
+                optionButtons[0].gameObject.SetActive(true);
+                optionButtons[0].onClick.RemoveAllListeners();
+                optionButtonTexts[0].text = "Finish";
+                optionButtons[0].onClick.AddListener(() => {
+                    dialoguePanel.SetActive(false);
+                    isDialogueActive = false;
+                    if (UIManager.Instance != null) UIManager.Instance.ShowVictoryPanel();
+                });
+            }
+            return;
+        }
+
         if (optionButtons.Count > 0 && optionButtonTexts.Count > 0)
         {
             optionButtons[0].gameObject.SetActive(true);
@@ -107,11 +180,11 @@ public class DialogueManager : MonoBehaviour
 
                 case EndingType.BadEnding:
                     optionButtonTexts[0].text = "Retry.";
-                    GameManager.Instance.TriggerGameOver();
                     optionButtons[0].onClick.AddListener(() => {
                         dialoguePanel.SetActive(false);
                         isDialogueActive = false;
-                        GameManager.Instance.RestartLevel();
+                        if (UIManager.Instance != null) UIManager.Instance.ShowGameOverPanel();
+                        else GameManager.Instance.RestartLevel();
                     });
                     break;
             }

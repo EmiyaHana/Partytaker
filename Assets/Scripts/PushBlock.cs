@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PushBlock : GridEntity
 {
-    private void Start()
+    private void Awake()
     {
         SetGridPosition(new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y)));
     }
